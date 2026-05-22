@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistem Pengundian Persatuan</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Bebas+Neue&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-text-size-adjust: none; text-size-adjust: none; -webkit-font-smoothing: antialiased; height: auto; }
+  body { font-family: 'Plus Jakarta Sans', sans-serif; background: #0b1a2e; color: #e2e8f0; padding-bottom: 60px; min-height: 100%; height: auto; overflow-y: visible; -webkit-overflow-scrolling: touch; }
+  #app-wrapper { position: relative; width: 100%; }
+  :root { --navy: #0b1a2e; --navy2: #132540; --gold: #c9a227; --gold2: #f0c84a; --blue: #3b82f6; --text: #e2e8f0; --muted: #8fa3bc; --border: rgba(255,255,255,0.09); }
+  #loading-screen { position: fixed; inset: 0; background: var(--navy); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; }
+  .loader-ring { width: 48px; height: 48px; border: 3px solid rgba(201,162,39,0.2); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loader-text { font-family: 'Bebas Neue', sans-serif; font-size: 14px; letter-spacing: 3px; color: var(--muted); }
+  .rt-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.3); border-radius: 999px; padding: 4px 12px; font-size: 11px; font-weight: 600; color: #86efac; letter-spacing: 1px; }
+  .rt-dot { width: 7px; height: 7px; background: #22c55e; border-radius: 50%; animation: pulse-dot 1.5s ease-in-out infinite; }
+  @keyframes pulse-dot { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:0.5; transform:scale(0.7); } }
+  .hero { background: linear-gradient(160deg, #0b1a2e 0%, #1a3460 55%, #0b1a2e 100%); padding: 36px 20px 28px; text-align: center; border-bottom: 2px solid var(--gold); }
+  .badge { display: inline-flex; align-items: center; gap: 7px; background: rgba(201,162,39,0.13); border: 1px solid rgba(201,162,39,0.38); border-radius: 999px; padding: 5px 16px; font-size: 11px; font-weight: 700; color: var(--gold2); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 12px; }
+  .hero h1 { font-family: 'Bebas Neue', sans-serif; font-size: clamp(34px, 9vw, 52px); letter-spacing: 4px; line-height: 1.05; color: #fff; margin-bottom: 6px; }
+  .hero h1 span { color: var(--gold); }
+  .hero-sub { font-size: 13px; color: var(--muted); font-weight: 500; margin-bottom: 14px; letter-spacing: 0.5px; }
+  .stats-row { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+  .stat-pill { background: rgba(255,255,255,0.06); border: 0.5px solid rgba(255,255,255,0.13); border-radius: 10px; padding: 9px 18px; text-align: center; min-width: 80px; }
+  .stat-pill .num { font-family: 'Bebas Neue', sans-serif; font-size: 24px; color: var(--gold); line-height: 1; }
+  .stat-pill .lbl { font-size: 9.5px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 3px; }
+  .container { max-width: 680px; margin: 0 auto; padding: 0 16px; }
+  .progress-box { margin-top: 20px; background: rgba(255,255,255,0.04); border: 0.5px solid var(--border); border-radius: 14px; padding: 16px; }
+  .progress-lbl { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+  .progress-lbl span { color: var(--gold); font-weight: 700; }
+  .prog-track { height: 7px; background: rgba(255,255,255,0.07); border-radius: 999px; overflow: hidden; }
+  .prog-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--gold), var(--gold2)); transition: width 0.5s cubic-bezier(.4,0,.2,1); }
+  .info-strip { margin-top: 14px; background: rgba(59,130,246,0.08); border: 0.5px solid rgba(59,130,246,0.22); border-radius: 12px; padding: 12px 14px; font-size: 12.5px; color: #93c5fd; line-height: 1.6; }
+  .live-voter-strip { margin-top: 12px; background: rgba(34,197,94,0.07); border: 0.5px solid rgba(34,197,94,0.25); border-radius: 12px; padding: 10px 14px; font-size: 12.5px; color: #86efac; line-height: 1.6; display: flex; align-items: center; gap: 10px; }
+  .live-voter-num { font-family: 'Bebas Neue', sans-serif; font-size: 22px; color: #4ade80; line-height: 1; }
+  .alert-box { border-radius: 14px; padding: 18px 16px; margin-top: 14px; }
+  .alert-box.show { animation: slideDown 0.25s ease; }
+  @keyframes slideDown { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:translateY(0); } }
+  .alert-box.success { background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.35); }
+  .alert-box.warning { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.35); }
+  .alert-inner { display: flex; align-items: flex-start; gap: 14px; }
+  .alert-emoji { font-size: 32px; flex-shrink: 0; line-height: 1.1; }
+  .alert-body { flex: 1; }
+  .alert-title { font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 1.5px; margin-bottom: 6px; }
+  .alert-box.success .alert-title { color: #86efac; }
+  .alert-box.warning .alert-title { color: #fca5a5; }
+  .alert-msg { font-size: 12.5px; color: var(--muted); line-height: 1.6; }
+  .alert-msg strong { color: var(--gold2); }
+  .alert-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .alert-btn-ok { padding: 9px 22px; background: var(--gold); border: none; border-radius: 10px; font-family: 'Bebas Neue', sans-serif; font-size: 15px; letter-spacing: 1.5px; color: #0b1a2e; cursor: pointer; }
+  .alert-btn-ok:hover { filter: brightness(1.1); }
+  .alert-btn-confirm { padding: 9px 22px; background: #e74c3c; border: none; border-radius: 10px; font-family: 'Bebas Neue', sans-serif; font-size: 15px; letter-spacing: 1.5px; color: #fff; cursor: pointer; }
+  .alert-btn-confirm:hover { filter: brightness(1.15); }
+  .alert-btn-cancel { padding: 9px 22px; background: transparent; border: 0.5px solid rgba(255,255,255,0.2); border-radius: 10px; font-family: 'Bebas Neue', sans-serif; font-size: 15px; letter-spacing: 1.5px; color: var(--muted); cursor: pointer; }
+  .alert-btn-cancel:hover { background: rgba(255,255,255,0.06); }
+  .pw-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 999; align-items: center; justify-content: center; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+  .pw-overlay.show { display: flex; }
+  .pw-box { background: var(--navy2); border: 1px solid rgba(201,162,39,0.4); border-radius: 20px; padding: 32px 28px; width: min(380px, 90vw); text-align: center; }
+  .pw-title { font-family: 'Bebas Neue', sans-serif; font-size: 26px; letter-spacing: 2px; color: var(--gold2); margin-bottom: 8px; }
+  .pw-sub { font-size: 13px; color: var(--muted); margin-bottom: 24px; line-height: 1.5; }
+  .pw-input { width: 100%; padding: 13px 16px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 12px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 15px; color: #fff; letter-spacing: 3px; text-align: center; outline: none; transition: border-color 0.2s; }
+  .pw-input:focus { border-color: var(--gold); }
+  .pw-input.error { border-color: #ef4444; animation: shake 0.3s ease; }
+  @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
+  .pw-error { font-size: 12px; color: #fca5a5; margin-top: 8px; min-height: 18px; }
+  .pw-actions { display: flex; gap: 10px; margin-top: 20px; }
+  .pw-btn-submit { flex: 1; padding: 12px; background: linear-gradient(135deg, var(--gold), #9e7a15); border: none; border-radius: 12px; font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 2px; color: #0b1a2e; cursor: pointer; transition: filter 0.18s; }
+  .pw-btn-submit:hover { filter: brightness(1.1); }
+  .pw-btn-cancel { padding: 12px 18px; background: transparent; border: 0.5px solid rgba(255,255,255,0.15); border-radius: 12px; font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 1px; color: var(--muted); cursor: pointer; transition: all 0.18s; }
+  .pw-btn-cancel:hover { background: rgba(255,255,255,0.05); }
+  .sec-head { display: flex; align-items: center; gap: 10px; margin: 28px 0 12px; }
+  .sec-title { font-family: 'Bebas Neue', sans-serif; font-size: 13px; letter-spacing: 3px; color: var(--gold2); white-space: nowrap; }
+  .sec-line { flex: 1; height: 1px; background: linear-gradient(to right, rgba(201,162,39,0.35), transparent); }
+  .post-card { background: rgba(255,255,255,0.03); border: 0.5px solid var(--border); border-radius: 16px; overflow: hidden; margin-bottom: 14px; transition: border-color 0.2s; }
+  .post-card.done { border-color: rgba(59,130,246,0.3); }
+  .post-head { background: linear-gradient(100deg, rgba(201,162,39,0.12), rgba(59,130,246,0.07)); padding: 13px 16px; display: flex; align-items: center; gap: 12px; border-bottom: 0.5px solid rgba(255,255,255,0.07); }
+  .post-icon { width: 40px; height: 40px; flex-shrink: 0; background: rgba(201,162,39,0.18); border: 1px solid rgba(201,162,39,0.38); border-radius: 11px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+  .post-name { font-family: 'Bebas Neue', sans-serif; font-size: 17px; letter-spacing: 1.8px; color: #fff; line-height: 1.1; }
+  .post-desc { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .slot-badge { margin-left: auto; flex-shrink: 0; font-size: 10.5px; font-weight: 700; background: rgba(201,162,39,0.13); border: 0.5px solid rgba(201,162,39,0.3); color: var(--gold2); border-radius: 999px; padding: 3px 10px; letter-spacing: 0.5px; }
+  .cands { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+  .cand { display: flex; align-items: center; gap: 11px; background: rgba(255,255,255,0.025); border: 0.5px solid rgba(255,255,255,0.07); border-radius: 12px; padding: 11px 13px; cursor: pointer; position: relative; transition: background 0.18s, border-color 0.18s, transform 0.12s, opacity 0.18s; user-select: none; -webkit-tap-highlight-color: transparent; }
+  .cand:active { transform: scale(0.982); }
+  .cand.selected { background: rgba(59,130,246,0.11); border-color: rgba(59,130,246,0.48); }
+  .cand.taken { opacity: 0.38; cursor: not-allowed; pointer-events: none; background: rgba(255,255,255,0.01); border-color: rgba(255,255,255,0.04); filter: saturate(0.2); }
+  .cand.taken .cand-num { opacity: 0.4; }
+  .cand.taken .cand-name { color: var(--muted); }
+  .taken-badge { flex-shrink: 0; font-size: 9.5px; font-weight: 700; background: rgba(239,68,68,0.15); border: 0.5px solid rgba(239,68,68,0.3); color: #fca5a5; border-radius: 999px; padding: 3px 9px; letter-spacing: 0.5px; white-space: nowrap; }
+  .cand-num { width: 30px; height: 30px; flex-shrink: 0; background: rgba(255,255,255,0.07); border-radius: 9px; display: flex; align-items: center; justify-content: center; font-family: 'Bebas Neue', sans-serif; font-size: 16px; color: var(--muted); }
+  .cand.selected .cand-num { background: rgba(59,130,246,0.25); color: #93c5fd; }
+  .cand-info { flex: 1; min-width: 0; }
+  .cand-name { font-size: 14px; font-weight: 600; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cand-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .vote-hidden { font-size: 11px; color: rgba(143,163,188,0.4); font-style: italic; }
+  .check { position: absolute; top: 8px; right: 9px; width: 18px; height: 18px; border-radius: 50%; background: #3b82f6; display: none; align-items: center; justify-content: center; font-size: 10px; color: #fff; }
+  .cand.selected .check { display: flex; }
+  .submit-wrap { margin-top: 24px; }
+  .submit-btn { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 17px; background: linear-gradient(135deg, #c9a227 0%, #9e7a15 100%); border: none; border-radius: 15px; font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 2.5px; color: #0b1a2e; cursor: pointer; box-shadow: 0 6px 24px rgba(201,162,39,0.22); transition: filter 0.18s, transform 0.12s; }
+  .submit-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .submit-btn:not(:disabled):hover { filter: brightness(1.1); transform: translateY(-2px); }
+  .submit-btn:not(:disabled):active { transform: scale(0.98); }
+  .reset-btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin-top: 10px; padding: 12px; background: transparent; border: 0.5px solid rgba(255,255,255,0.12); border-radius: 12px; cursor: pointer; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 13px; color: var(--muted); transition: all 0.18s; }
+  .reset-btn:hover { border-color: rgba(239,68,68,0.4); color: #fca5a5; background: rgba(239,68,68,0.06); }
+  /* Butang close-voting HANYA nampak dalam admin mode */
+  .close-voting-btn { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; margin-top: 10px; padding: 14px; background: rgba(239,68,68,0.1); border: 0.5px solid rgba(239,68,68,0.35); border-radius: 15px; font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 2px; color: #fca5a5; cursor: pointer; transition: all 0.18s; }
+  .close-voting-btn:hover { background: rgba(239,68,68,0.18); border-color: rgba(239,68,68,0.55); }
+  footer.vote-foot { text-align: center; padding: 18px 20px 0; font-size: 11.5px; color: rgba(143,163,188,0.45); letter-spacing: 0.3px; }
+  .results-hero { background: linear-gradient(160deg, #0b1a2e 0%, #1a2e60 55%, #0b1a2e 100%); padding: 36px 20px 28px; text-align: center; border-bottom: 2px solid var(--gold); }
+  .results-title { font-family: 'Bebas Neue', sans-serif; font-size: clamp(30px, 8vw, 48px); letter-spacing: 4px; color: #fff; margin-bottom: 6px; }
+  .results-title span { color: var(--gold); }
+  .results-sub { font-size: 13px; color: var(--muted); margin-bottom: 22px; }
+  .winner-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr)); gap: 12px; margin-bottom: 20px; }
+  .winner-card { background: rgba(255,255,255,0.03); border: 0.5px solid rgba(201,162,39,0.25); border-radius: 16px; padding: 18px 14px; text-align: center; position: relative; overflow: hidden; }
+  .winner-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, var(--gold), transparent); }
+  .wc-post-label { font-size: 9px; letter-spacing: 2.5px; text-transform: uppercase; color: var(--gold2); font-weight: 700; margin-bottom: 4px; }
+  .wc-post-name { font-family: 'Bebas Neue', sans-serif; font-size: 11px; letter-spacing: 1.5px; color: rgba(201,162,39,0.55); margin-bottom: 8px; }
+  .wc-name { font-family: 'Bebas Neue', sans-serif; font-size: 19px; letter-spacing: 1.5px; color: #fff; line-height: 1.2; margin-bottom: 10px; }
+  .wc-votes { font-family: 'Bebas Neue', sans-serif; font-size: 36px; color: var(--gold); line-height: 1; }
+  .wc-votes-lbl { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+  .wc-pie-wrap { position: relative; width: 90px; height: 90px; margin: 12px auto 0; }
+  .wc-pie-label { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: 'Bebas Neue', sans-serif; font-size: 18px; color: var(--gold); }
+  .result-post-card { background: rgba(255,255,255,0.03); border: 0.5px solid var(--border); border-radius: 16px; overflow: hidden; margin-bottom: 14px; }
+  .result-post-head { background: linear-gradient(100deg, rgba(201,162,39,0.12), rgba(59,130,246,0.07)); padding: 13px 16px; display: flex; align-items: center; gap: 12px; border-bottom: 0.5px solid rgba(255,255,255,0.07); }
+  .result-cands { padding: 12px; display: flex; flex-direction: column; gap: 6px; }
+  .result-cand { padding: 10px 13px; border-radius: 12px; background: rgba(255,255,255,0.025); border: 0.5px solid rgba(255,255,255,0.07); }
+  .rc-top { display: flex; align-items: center; gap: 10px; margin-bottom: 7px; }
+  .rc-rank { width: 28px; height: 28px; flex-shrink: 0; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-family: 'Bebas Neue', sans-serif; font-size: 15px; background: rgba(255,255,255,0.07); color: var(--muted); }
+  .rank1 .rc-rank { background: rgba(201,162,39,0.25); color: var(--gold2); }
+  .rc-name { flex: 1; font-size: 13px; font-weight: 600; color: #fff; }
+  .rc-votes { font-family: 'Bebas Neue', sans-serif; font-size: 22px; color: var(--muted); }
+  .rank1 .rc-votes { color: var(--gold); }
+  .rc-pct { font-size: 11px; color: var(--muted); margin-left: 4px; align-self: flex-end; margin-bottom: 2px; }
+  .rc-bar-wrap { height: 5px; background: rgba(255,255,255,0.07); border-radius: 999px; overflow: hidden; }
+  .rc-bar { height: 100%; border-radius: 999px; background: rgba(255,255,255,0.2); transition: width 0.8s cubic-bezier(.4,0,.2,1); }
+  .rank1 .rc-bar { background: linear-gradient(90deg, var(--gold), var(--gold2)); }
+  .reopen-btn { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; margin-top: 24px; padding: 14px; background: rgba(201,162,39,0.1); border: 0.5px solid rgba(201,162,39,0.3); border-radius: 15px; font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 2px; color: var(--gold2); cursor: pointer; transition: all 0.18s; }
+  .reopen-btn:hover { background: rgba(201,162,39,0.18); }
+  .summary-strip { margin-top: 20px; background: rgba(255,255,255,0.04); border: 0.5px solid var(--border); border-radius: 14px; padding: 16px; font-size: 12.5px; color: var(--muted); line-height: 2; }
+  .summary-strip strong { color: var(--gold2); }
+  .spin-inline { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; }
+  .auto-nobat-banner { margin-bottom: 20px; background: rgba(168,85,247,0.08); border: 1px solid rgba(168,85,247,0.35); border-radius: 14px; padding: 14px 16px; }
+  .auto-nobat-title { font-family: 'Bebas Neue', sans-serif; font-size: 14px; letter-spacing: 2px; color: #d8b4fe; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+  .auto-nobat-item { background: rgba(168,85,247,0.06); border: 0.5px solid rgba(168,85,247,0.25); border-radius: 10px; padding: 10px 13px; margin-top: 7px; font-size: 12.5px; color: var(--muted); line-height: 1.7; }
+  .auto-nobat-item strong { color: #d8b4fe; }
+  .auto-nobat-item .nobat-arrow { color: rgba(168,85,247,0.6); margin: 0 6px; }
+  .winner-card.auto-nobat { border-color: rgba(168,85,247,0.4); }
+  .winner-card.auto-nobat::before { background: linear-gradient(90deg, transparent, #a855f7, transparent); }
+  .auto-nobat-tag { display: inline-block; font-size: 9px; font-weight: 700; letter-spacing: 1.5px; background: rgba(168,85,247,0.18); border: 0.5px solid rgba(168,85,247,0.4); color: #d8b4fe; border-radius: 999px; padding: 2px 8px; margin-top: 4px; }
+  @keyframes flash-update { 0% { background: rgba(34,197,94,0.2); } 100% { background: transparent; } }
+  .flash { animation: flash-update 0.6s ease; }
+  #admin-back-strip { display: none; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; background: rgba(201,162,39,0.08); border: 0.5px solid rgba(201,162,39,0.25); border-radius: 12px; padding: 10px 14px; }
+  #admin-back-strip span { font-size: 12px; color: var(--gold2); }
+  #admin-back-strip button { flex-shrink: 0; padding: 8px 16px; background: var(--gold); border: none; border-radius: 10px; font-family: 'Bebas Neue', sans-serif; font-size: 13px; letter-spacing: 1.5px; color: #0b1a2e; cursor: pointer; }
+  /* Butang tutup dalam admin results strip */
+  .admin-close-voting-btn { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; margin-top: 10px; padding: 14px; background: rgba(239,68,68,0.1); border: 0.5px solid rgba(239,68,68,0.35); border-radius: 15px; font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 2px; color: #fca5a5; cursor: pointer; transition: all 0.18s; }
+  .admin-close-voting-btn:hover { background: rgba(239,68,68,0.18); border-color: rgba(239,68,68,0.55); }
+</style>
+</head>
+<body>
+<div id="app-wrapper">
+
+<!-- LOADING SCREEN -->
+<div id="loading-screen">
+  <div class="loader-ring"></div>
+  <div class="loader-text">Menghubungi Firebase...</div>
+</div>
+
+<!-- PASSWORD OVERLAY OWNER -->
+<div class="pw-overlay" id="pw-overlay">
+  <div class="pw-box">
+    <div class="pw-title">TUTUP PENGUNDIAN</div>
+    <div class="pw-sub">Masukkan kata laluan owner untuk mengesahkan penutupan sesi pengundian dan memaparkan keputusan rasmi.</div>
+    <input class="pw-input" id="pw-input" type="password" maxlength="20" oninput="clearPwError()" onkeydown="if(event.key==='Enter')verifyPassword()">
+    <div class="pw-error" id="pw-error"></div>
+    <div class="pw-actions">
+      <button class="pw-btn-cancel" onclick="closePwOverlay()">BATAL</button>
+      <button class="pw-btn-submit" onclick="verifyPassword()">SAHKAN</button>
+    </div>
+  </div>
+</div>
+
+<!-- PASSWORD OVERLAY ADMIN -->
+<div class="pw-overlay" id="pw-admin-overlay">
+  <div class="pw-box">
+    <div class="pw-title">PAPAN PEMANTAU</div>
+    <div class="pw-sub">Masukkan kata laluan admin untuk melihat keputusan semasa tanpa menutup sesi pengundian.</div>
+    <input class="pw-input" id="pw-admin-input" type="password" maxlength="20" oninput="clearAdminPwError()" onkeydown="if(event.key==='Enter')verifyAdminPassword()">
+    <div class="pw-error" id="pw-admin-error"></div>
+    <div class="pw-actions">
+      <button class="pw-btn-cancel" onclick="closeAdminPwOverlay()">BATAL</button>
+      <button class="pw-btn-submit" onclick="verifyAdminPassword()">MASUK</button>
+    </div>
+  </div>
+</div>
+
+<!-- VOTING PAGE -->
+<div id="voting-page">
+  <div class="hero">
+    <div class="badge">Sistem Pengundian Rasmi</div>
+    <h1>AHLI JAWATANKUASA<br><span>CPD</span> MEKANIKAL KKM</h1>
+    <div class="hero-sub">Sesi Pengundian 2026&ndash;2027 &bull; Sulit &amp; Selamat
+      <span class="rt-badge"><span class="rt-dot"></span>LIVE</span>
+    </div>
+    <div class="stats-row">
+      <div class="stat-pill"><div class="num">6</div><div class="lbl">Jawatan</div></div>
+      <div class="stat-pill"><div class="num" id="total-selected">0</div><div class="lbl">Dipilih</div></div>
+      <div class="stat-pill"><div class="num">16</div><div class="lbl">Calon</div></div>
+      <div class="stat-pill"><div class="num" id="total-voters-live">0</div><div class="lbl">Pengundi</div></div>
+    </div>
+    <button onclick="showAdminView()" style="background:rgba(255,255,255,0.05);border:0.5px solid rgba(255,255,255,0.15);border-radius:999px;padding:7px 18px;font-family:'Plus Jakarta Sans',sans-serif;font-size:11px;font-weight:600;color:rgba(143,163,188,0.7);cursor:pointer;letter-spacing:1px;text-transform:uppercase;transition:all 0.18s;" onmouseover="this.style.background='rgba(201,162,39,0.1)';this.style.borderColor='rgba(201,162,39,0.3)';this.style.color='#c9a227'" onmouseout="this.style.background='rgba(255,255,255,0.05)';this.style.borderColor='rgba(255,255,255,0.15)';this.style.color='rgba(143,163,188,0.7)'">Papan Pemantau Admin</button>
+  </div>
+
+  <div class="container">
+    <div class="progress-box">
+      <div class="progress-lbl"><span>Kemajuan Pengundian</span><span id="prog-label">0 / 6 Jawatan</span></div>
+      <div class="prog-track"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div>
+    </div>
+
+    <div class="live-voter-strip">
+      <div>
+        <div class="live-voter-num" id="live-voter-count">0</div>
+        <div style="font-size:10px;opacity:0.7;letter-spacing:1px;text-transform:uppercase">Telah mengundi</div>
+      </div>
+      <div style="flex:1;font-size:12px;color:rgba(134,239,172,0.7)">Dikemas kini <strong>masa nyata</strong> dari semua peranti.</div>
+      <div class="rt-badge"><span class="rt-dot"></span>Firebase Live</div>
+    </div>
+
+    <div class="info-strip">
+      Pilih calon untuk setiap jawatan. Kiraan undi <strong>disembunyikan</strong> semasa sesi pengundian berjalan.
+      Calon yang sudah dipilih untuk jawatan lain akan <strong>digreyed out</strong> secara automatik.
+    </div>
+
+    <!-- Alert sudah undi -->
+    <div class="alert-box warning" id="alert-already-voted" style="display:none">
+      <div class="alert-inner">
+        <div class="alert-emoji">🔒</div>
+        <div class="alert-body">
+          <div class="alert-title">UNDI TELAH DIREKODKAN</div>
+          <div class="alert-msg">Peranti ini <strong>sudah mengundi</strong> sebelum ini. Setiap pengundi hanya dibenarkan mengundi sekali.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Alert berjaya undi -->
+    <div class="alert-box success" id="alert-success" style="display:none">
+      <div class="alert-inner">
+        <div class="alert-emoji">✅</div>
+        <div class="alert-body">
+          <div class="alert-title">UNDI BERJAYA!</div>
+          <div class="alert-msg">Undi anda telah direkodkan dengan selamat ke Firebase. Keputusan akan didedahkan selepas sesi ditutup.</div>
+          <div class="alert-actions">
+            <button class="alert-btn-ok" onclick="document.getElementById('alert-success').style.display='none'">OK, FAHAM</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Alert sahkan tutup (dipaparkan dalam admin view sahaja) -->
+    <div class="alert-box warning" id="alert-close" style="display:none">
+      <div class="alert-inner">
+        <div class="alert-emoji">⚠️</div>
+        <div class="alert-body">
+          <div class="alert-title">TUTUP PENGUNDIAN?</div>
+          <div class="alert-msg">Adakah anda pasti? Tindakan ini akan <strong>mendedahkan keputusan undi</strong> kepada semua peserta.</div>
+          <div class="alert-actions">
+            <button class="alert-btn-confirm" onclick="closeVoting()">YA, TUTUP SEKARANG</button>
+            <button class="alert-btn-cancel" onclick="document.getElementById('alert-close').style.display='none'">BATAL</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec-head"><div class="sec-title">SENARAI JAWATAN</div><div class="sec-line"></div></div>
+    <div id="posts-container"></div>
+
+    <div class="submit-wrap">
+      <button class="submit-btn" id="submit-btn" disabled onclick="submitVote()">✦ HANTAR UNDI</button>
+      <button class="reset-btn" onclick="resetAll()">🗑 Buang Semua Pilihan</button>
+      <!-- TIADA butang tutup di sini — hanya dalam paparan admin -->
+    </div>
+  </div>
+
+  <footer class="vote-foot">SISTEM PENGUNDIAN ELEKTRONIK &bull; Firebase Realtime &bull; Undi anda adalah sulit.<br>&copy; 2026 Hak Cipta Terpelihara</footer>
+</div>
+
+<!-- RESULTS PAGE -->
+<div id="results-page" style="display:none">
+  <div class="results-hero">
+    <div class="badge" id="results-badge">Keputusan Rasmi</div>
+    <div class="results-title">KEPUTUSAN <span>UNDI</span></div>
+    <div class="results-sub">Sesi Pengundian 2026&ndash;2027 &bull; <span id="results-session-label">Ditutup Rasmi</span></div>
+    <div class="stats-row">
+      <div class="stat-pill"><div class="num" id="r-total-votes">0</div><div class="lbl">Jumlah Undi</div></div>
+      <div class="stat-pill"><div class="num">6</div><div class="lbl">Jawatan</div></div>
+      <div class="stat-pill"><div class="num">6</div><div class="lbl">Pemenang</div></div>
+    </div>
+  </div>
+
+  <!-- Admin strip — hanya admin nampak ini -->
+  <div id="admin-back-strip">
+    <span><strong>Mod Admin</strong></span>
+    <span class="rt-badge" style="vertical-align:middle"><span class="rt-dot"></span>Data Dikemas Kini Live</span>
+    <button onclick="backToVoting()">KEMBALI</button>
+  </div>
+
+  <div class="container">
+    <!-- Butang tutup pengundian — DALAM container admin results sahaja -->
+    <div id="admin-close-wrap" style="display:none">
+      <button class="admin-close-voting-btn" onclick="showCloseConfirm()">🔒 TUTUP SESI PENGUNDIAN &amp; PAPAR KEPUTUSAN RASMI</button>
+    </div>
+
+    <div class="sec-head"><div class="sec-title">PEMENANG SETIAP JAWATAN</div><div class="sec-line"></div></div>
+    <div class="winner-grid" id="winner-grid"></div>
+
+    <div class="sec-head"><div class="sec-title">KEPUTUSAN TERPERINCI</div><div class="sec-line"></div></div>
+    <div id="results-container"></div>
+
+    <div class="summary-strip" id="summary-strip"></div>
+
+    <div id="btn-reopen-wrap">
+      <button class="reopen-btn" onclick="reopenVoting()">🔓 Buka Semula Sesi Pengundian</button>
+    </div>
+
+    <footer class="vote-foot" style="margin-top:20px">KEPUTUSAN RASMI &bull; Muktamad &amp; Disahkan Sistem.<br>&copy; 2026 Hak Cipta Terpelihara</footer>
+  </div>
+</div>
+
+</div><!-- end app-wrapper -->
+
+<!-- FIREBASE LOGIC -->
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import { getDatabase, ref, get, set, onValue, runTransaction } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyA1-mAOjJV-T2DIYCPVwN0TlyQZZr4FEOI",
+  authDomain: "undi-ajk-cpd.firebaseapp.com",
+  databaseURL: "https://undi-ajk-cpd-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "undi-ajk-cpd",
+  storageBucket: "undi-ajk-cpd.firebasestorage.app",
+  messagingSenderId: "1005430928429",
+  appId: "1:1005430928429:web:d80cb8e81c9d72ba22f4a4"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+const posts = [
+  { id:'p1', icon:'👑', name:'TIMBALAN PRESIDEN', desc:'Timbalan Ketua CPD Mekanikal KKM', slots:1, candidates:[
+    {id:'c1',name:'Mohd Fahril B. Mokhy',meta:'Calon A • Ibu Pejabat KKM'},
+    {id:'c2',name:'Mohd Fairuz Bin Mohd',meta:'Calon B • Ibu Pejabat KKM'},
+    {id:'c3',name:'Mohd Kamalluddin Bin Hashim',meta:'Calon C • Ibu Pejabat KKM'},
+    {id:'c4',name:'Mohd Hisam Bin SaAt',meta:'Calon D • Ibu Pejabat KKM'},
+    {id:'c5',name:'Sulaiman Bin Mohd Muslim',meta:'Calon E • Ibu Pejabat KKM'},
+    {id:'c6',name:'Hilmi Bin Abdullah',meta:'Calon F • Ibu Pejabat KKM'},
+  ]},
+  { id:'p2', icon:'💰', name:'BENDAHARI', desc:'Pengurus Kewangan CPD Mekanikal', slots:1, candidates:[
+    {id:'c7',name:'Amir Ikram Bin Muhammad',meta:'Calon A • Ibu Pejabat KKM'},
+    {id:'c8',name:'Mohd Haikal Bin Jamaludin',meta:'Calon B • Ibu Pejabat KKM'},
+    {id:'c9',name:'Rasyidi Bin Mohd Tahir',meta:'Calon C • Ibu Pejabat KKM'},
+    {id:'c10',name:'Mohd Khairulrizal Bin Md Salleh',meta:'Calon D • Ibu Pejabat KKM'},
+    {id:'c11',name:'Muhammad Eshamuddin Bin Endut',meta:'Calon E • Ibu Pejabat KKM'},
+    {id:'c12',name:'Zulfadli Bin Mohd Jais',meta:'Calon F • Ibu Pejabat KKM'},
+  ]},
+  { id:'p3', icon:'📚', name:'AJK LATIHAN KOMPETENSI', desc:'Menguruskan Hal-Hal Berkaitan Latihan Kompetensi', slots:1, candidates:[
+    {id:'c13',name:'Amir Ikram Bin Muhammad',meta:'Calon A • Ibu Pejabat KKM'},
+    {id:'c14',name:'Mohd Haikal Bin Jamaludin',meta:'Calon B • Ibu Pejabat KKM'},
+    {id:'c15',name:'Rasyidi Bin Mohd Tahir',meta:'Calon C • Ibu Pejabat KKM'},
+    {id:'c16',name:'Mohd Khairulrizal Bin Md Salleh',meta:'Calon D • Ibu Pejabat KKM'},
+    {id:'c17',name:'Muhammad Eshamuddin Bin Endut',meta:'Calon E • Ibu Pejabat KKM'},
+    {id:'c18',name:'Zulfadli Bin Mohd Jais',meta:'Calon F • Ibu Pejabat KKM'},
+  ]},
+  { id:'p4', icon:'👥', name:'AJK SUMBER MANUSIA', desc:'Menguruskan Hal-Hal Berkaitan Sumber Manusia', slots:1, candidates:[
+    {id:'c19',name:'Amir Ikram Bin Muhammad',meta:'Calon A • Ibu Pejabat KKM'},
+    {id:'c20',name:'Mohd Haikal Bin Jamaludin',meta:'Calon B • Ibu Pejabat KKM'},
+    {id:'c21',name:'Rasyidi Bin Mohd Tahir',meta:'Calon C • Ibu Pejabat KKM'},
+    {id:'c22',name:'Mohd Khairulrizal Bin Md Salleh',meta:'Calon D • Ibu Pejabat KKM'},
+    {id:'c23',name:'Muhammad Eshamuddin Bin Endut',meta:'Calon E • Ibu Pejabat KKM'},
+    {id:'c24',name:'Zulfadli Bin Mohd Jais',meta:'Calon F • Ibu Pejabat KKM'},
+  ]},
+  { id:'p5', icon:'🤝', name:'AJK KEBAJIKAN SOSIAL', desc:'Menguruskan Hal-Hal Berkaitan Kebajikan Sosial', slots:1, candidates:[
+    {id:'c25',name:'Amir Ikram Bin Muhammad',meta:'Calon A • Ibu Pejabat KKM'},
+    {id:'c26',name:'Mohd Haikal Bin Jamaludin',meta:'Calon B • Ibu Pejabat KKM'},
+    {id:'c27',name:'Rasyidi Bin Mohd Tahir',meta:'Calon C • Ibu Pejabat KKM'},
+    {id:'c28',name:'Mohd Khairulrizal Bin Md Salleh',meta:'Calon D • Ibu Pejabat KKM'},
+    {id:'c29',name:'Muhammad Eshamuddin Bin Endut',meta:'Calon E • Ibu Pejabat KKM'},
+    {id:'c30',name:'Zulfadli Bin Mohd Jais',meta:'Calon F • Ibu Pejabat KKM'},
+  ]},
+  { id:'p6', icon:'🗺️', name:'AJK WAKIL ZON TENGAH', desc:'AJK Wakil Zon Tengah W.P.KL, Selangor', slots:1, candidates:[
+    {id:'c31',name:'Alif Riduan Bin Khalid/Othman',meta:'Calon A • Hospital Kuala Lumpur'},
+    {id:'c32',name:'Arihan Sallehin B. Idris',meta:'Calon B • Institusi'},
+    {id:'c33',name:'Mohammad Faizal Bin Khalid',meta:'Calon C • Selangor'},
+    {id:'c34',name:'Abdul Malik Bin Zainal Abidin',meta:'Calon D • JKWP.KL'},
+  ]},
+];
+
+const OWNER_PASSWORD = 'cpd2026';
+
+function generateFingerprint() {
+  const parts = [navigator.userAgent, navigator.language, screen.width+'x'+screen.height, screen.colorDepth, new Date().getTimezoneOffset(), navigator.hardwareConcurrency, navigator.platform, (function(){try{const c=document.createElement('canvas');const x=c.getContext('2d');x.textBaseline='top';x.font='14px Arial';x.fillStyle='#f60';x.fillRect(125,1,62,20);x.fillStyle='#069';x.fillText('CPD2026',2,15);x.fillStyle='rgba(102,204,0,0.7)';x.fillText('CPD2026',4,17);return c.toDataURL().slice(-50);}catch(e){return 'nc';}})()];
+  let h=5381,s=parts.join('|');
+  for(let i=0;i<s.length;i++) h=h*5+h+s.charCodeAt(i);
+  return 'fp'+Math.abs(h).toString(36);
+}
+
+function getOrCreateToken() {
+  const KEY='cpdvotetoken2026';
+  let t=null;
+  try { t=localStorage.getItem(KEY); if(!t){t='tok'+Date.now().toString(36)+Math.random().toString(36).slice(2,8);localStorage.setItem(KEY,t);} } catch(e) {}
+  if(!t){ if(!window._st) window._st='ses'+Date.now().toString(36)+Math.random().toString(36).slice(2,8); t=window._st; }
+  return t;
+}
+
+function getDeviceId() {
+  const fp=generateFingerprint(), tok=getOrCreateToken();
+  let h=5381,s=fp+tok;
+  for(let i=0;i<s.length;i++) h=h*5+h+s.charCodeAt(i);
+  return 'dev'+Math.abs(h).toString(36)+tok.slice(-6);
+}
+
+function getTakenNamesExcluding(currentPostId) {
+  const takenNames = new Set();
+  posts.forEach(post => {
+    if (post.id === currentPostId) return;
+    const selCandId = selections[post.id];
+    if (selCandId) {
+      const cand = post.candidates.find(c => c.id === selCandId);
+      if (cand) takenNames.add(cand.name);
+    }
+  });
+  return takenNames;
+}
+
+function findPostNameForCandName(candName, currentPostId) {
+  for (const post of posts) {
+    if (post.id === currentPostId) continue;
+    const selCandId = selections[post.id];
+    if (selCandId) {
+      const cand = post.candidates.find(c => c.id === selCandId);
+      if (cand && cand.name === candName) return post.name;
+    }
+  }
+  return null;
+}
+
+const selections = {};
+let hasVoted = false;
+const DEVICE_ID = getDeviceId();
+let votesUnsubFn = null;
+
+async function init() {
+  try {
+    const snap = await get(ref(db,'voters/'+DEVICE_ID));
+    if(snap.exists()) hasVoted = true;
+  } catch(e) {}
+  document.getElementById('loading-screen').style.display='none';
+  renderPosts();
+  setupLiveVoterCount();
+  if(hasVoted) {
+    document.getElementById('alert-already-voted').style.display='block';
+    document.getElementById('submit-btn').disabled=true;
+  }
+}
+
+function setupLiveVoterCount() {
+  onValue(ref(db,'voters'), snap => {
+    const n = snap.exists() ? Object.keys(snap.val()).length : 0;
+    ['total-voters-live','live-voter-count'].forEach(id => {
+      const el=document.getElementById(id);
+      if(!el) return;
+      el.textContent=n;
+      el.classList.add('flash');
+      setTimeout(()=>el.classList.remove('flash'),600);
+    });
+  });
+}
+
+function setupLiveVotesListener(cb) {
+  if(votesUnsubFn) votesUnsubFn();
+  votesUnsubFn = onValue(ref(db,'votes'), snap => cb(snap.exists()?snap.val():{}));
+}
+
+function renderPosts() {
+  const container = document.getElementById('posts-container');
+  container.innerHTML = '';
+  posts.forEach(post => {
+    const sel = selections[post.id];
+    const card = document.createElement('div');
+    card.className = 'post-card'+(sel?' done':'');
+    card.innerHTML = `
+      <div class="post-head">
+        <div class="post-icon">${post.icon}</div>
+        <div><div class="post-name">${post.name}</div><div class="post-desc">${post.desc}</div></div>
+        <div class="slot-badge">PILIH ${post.slots}</div>
+      </div>
+      <div class="cands" id="cands-${post.id}"></div>`;
+    container.appendChild(card);
+
+    const ce = document.getElementById('cands-'+post.id);
+    const takenNames = getTakenNamesExcluding(post.id);
+
+    post.candidates.forEach((cand, i) => {
+      const isSelected = sel === cand.id;
+      const isTaken = !isSelected && takenNames.has(cand.name);
+      const takenPost = isTaken ? findPostNameForCandName(cand.name, post.id) : null;
+
+      const d = document.createElement('div');
+      let cls = 'cand';
+      if (isSelected) cls += ' selected';
+      if (isTaken) cls += ' taken';
+      d.className = cls;
+
+      const rightContent = isTaken
+        ? `<div class="taken-badge">✗ DIPILIH DI JAWATAN LAIN</div>`
+        : `<div style="flex-shrink:0"><div class="vote-hidden">Undi sulit</div></div>`;
+
+      d.innerHTML = `
+        <div class="cand-num">${i+1}</div>
+        <div class="cand-info">
+          <div class="cand-name">${cand.name}</div>
+          <div class="cand-meta">${cand.meta}${isTaken && takenPost ? ` <span style="color:#fca5a5;font-style:italic">— ${takenPost}</span>` : ''}</div>
+        </div>
+        ${rightContent}
+        <div class="check">✓</div>`;
+
+      if (!hasVoted && !isTaken) {
+        d.onclick = () => selectCand(post.id, cand.id);
+      } else {
+        d.style.cursor = 'not-allowed';
+      }
+      ce.appendChild(d);
+    });
+  });
+  updateProgress();
+}
+
+function selectCand(postId, candId) {
+  if(hasVoted) return;
+  selections[postId] = selections[postId] === candId ? undefined : candId;
+  if(!selections[postId]) delete selections[postId];
+  renderPosts();
+}
+
+function updateProgress() {
+  const n = Object.keys(selections).length;
+  document.getElementById('total-selected').textContent=n;
+  document.getElementById('prog-label').textContent=n+' / '+posts.length+' Jawatan';
+  document.getElementById('prog-fill').style.width=(n/posts.length*100)+'%';
+  document.getElementById('submit-btn').disabled = (n<posts.length)||hasVoted;
+}
+
+async function submitVote() {
+  if(hasVoted || Object.keys(selections).length<posts.length) return;
+  try {
+    const s = await get(ref(db,'voters/'+DEVICE_ID));
+    if(s.exists()){hasVoted=true;renderPosts();document.getElementById('alert-already-voted').style.display='block';return;}
+  } catch(e){}
+  const btn = document.getElementById('submit-btn');
+  btn.disabled=true;
+  btn.innerHTML='<span class="spin-inline"></span> MENGHANTAR...';
+  try {
+    await Promise.all(posts.map(post => {
+      const cand = post.candidates.find(c=>c.id===selections[post.id]);
+      return runTransaction(ref(db,'votes/'+cand.id), cur => ({
+        name:cand.name, meta:cand.meta, post:post.name, postId:post.id,
+        votes:(cur&&cur.votes?cur.votes:0)+1
+      }));
+    }));
+    await set(ref(db,'voters/'+DEVICE_ID), {ts:Date.now(), fp:generateFingerprint()});
+    hasVoted=true;
+    btn.innerHTML='✦ HANTAR UNDI';
+    renderPosts();
+    const el=document.getElementById('alert-success');
+    el.style.display='block';
+    setTimeout(()=>{
+      try { el.scrollIntoView({behavior:'smooth',block:'center'}); } catch(e) {}
+    },100);
+  } catch(e) {
+    btn.disabled=false;
+    btn.innerHTML='✦ HANTAR UNDI';
+    alert('Ralat semasa menghantar undi. Sila cuba semula.\n'+e.message);
+  }
+}
+
+function resetAll() {
+  if(hasVoted) return;
+  Object.keys(selections).forEach(k=>delete selections[k]);
+  renderPosts();
+}
+
+// PASSWORD HANDLERS
+function showCloseConfirm() {
+  // Dipanggil dari dalam admin view — terus tunjuk dialog sahkan (tanpa password semula)
+  const el=document.getElementById('alert-close');
+  el.style.display='block';
+  setTimeout(()=>{ try{el.scrollIntoView({behavior:'smooth',block:'center'});}catch(e){} },100);
+}
+
+function showOwnerPasswordPrompt() {
+  // Prompt password untuk masuk admin view dari voting page
+  const ov=document.getElementById('pw-admin-overlay'), inp=document.getElementById('pw-admin-input');
+  ov.classList.add('show'); inp.value=''; clearAdminPwError();
+  setTimeout(()=>inp.focus(),100);
+}
+
+function closePwOverlay() { document.getElementById('pw-overlay').classList.remove('show'); document.getElementById('pw-input').value=''; clearPwError(); }
+function clearPwError() { document.getElementById('pw-input').classList.remove('error'); document.getElementById('pw-error').textContent=''; }
+function verifyPassword() {
+  const v=document.getElementById('pw-input').value.trim();
+  if(v===OWNER_PASSWORD){ closePwOverlay(); const el=document.getElementById('alert-close'); el.style.display='block'; setTimeout(()=>{ try{el.scrollIntoView({behavior:'smooth',block:'center'});}catch(e){} },100); }
+  else { document.getElementById('pw-input').classList.add('error'); document.getElementById('pw-error').textContent='Kata laluan salah. Cuba semula.'; document.getElementById('pw-input').value=''; setTimeout(()=>document.getElementById('pw-input').focus(),100); }
+}
+
+function showAdminView() {
+  const ov=document.getElementById('pw-admin-overlay'), inp=document.getElementById('pw-admin-input');
+  ov.classList.add('show'); inp.value=''; clearAdminPwError();
+  setTimeout(()=>inp.focus(),100);
+}
+function closeAdminPwOverlay() { document.getElementById('pw-admin-overlay').classList.remove('show'); document.getElementById('pw-admin-input').value=''; clearAdminPwError(); }
+function clearAdminPwError() { document.getElementById('pw-admin-input').classList.remove('error'); document.getElementById('pw-admin-error').textContent=''; }
+function verifyAdminPassword() {
+  const v=document.getElementById('pw-admin-input').value.trim();
+  if(v===OWNER_PASSWORD){ closeAdminPwOverlay(); showResults(true); }
+  else { document.getElementById('pw-admin-input').classList.add('error'); document.getElementById('pw-admin-error').textContent='Kata laluan salah.'; document.getElementById('pw-admin-input').value=''; setTimeout(()=>document.getElementById('pw-admin-input').focus(),100); }
+}
+
+// NAVIGATION
+function closeVoting() {
+  document.getElementById('alert-close').style.display='none';
+  // Tukar dari admin view ke keputusan rasmi
+  document.getElementById('admin-back-strip').style.display='none';
+  document.getElementById('admin-close-wrap').style.display='none';
+  document.getElementById('btn-reopen-wrap').style.display='block';
+  document.getElementById('results-badge').textContent='Keputusan Rasmi';
+  document.getElementById('results-session-label').textContent='Ditutup Rasmi';
+}
+
+function backToVoting() {
+  document.getElementById('results-page').style.display='none';
+  document.getElementById('voting-page').style.display='block';
+  try { window.scrollTo({top:0,behavior:'smooth'}); } catch(e) { window.scrollTo(0,0); }
+  if(votesUnsubFn){ votesUnsubFn(); votesUnsubFn=null; }
+}
+
+function reopenVoting() {
+  document.getElementById('results-page').style.display='none';
+  document.getElementById('voting-page').style.display='block';
+  try { window.scrollTo({top:0,behavior:'smooth'}); } catch(e) { window.scrollTo(0,0); }
+  if(votesUnsubFn){ votesUnsubFn(); votesUnsubFn=null; }
+}
+
+const pieInst = {};
+function showResults(isAdmin) {
+  document.getElementById('voting-page').style.display='none';
+  document.getElementById('results-page').style.display='block';
+  try { window.scrollTo({top:0,behavior:'smooth'}); } catch(e) { window.scrollTo(0,0); }
+
+  // Admin strip — kembali ke voting + butang tutup
+  document.getElementById('admin-back-strip').style.display = isAdmin ? 'flex' : 'none';
+  // Butang tutup sesi — HANYA dalam admin view
+  document.getElementById('admin-close-wrap').style.display = isAdmin ? 'block' : 'none';
+  // Butang buka semula — HANYA dalam keputusan rasmi (bukan admin)
+  document.getElementById('btn-reopen-wrap').style.display = isAdmin ? 'none' : 'block';
+
+  document.getElementById('results-badge').textContent = isAdmin ? 'Papan Pemantau Admin' : 'Keputusan Rasmi';
+  document.getElementById('results-session-label').textContent = isAdmin ? 'Sesi Masih Berjalan – Data Semasa' : 'Ditutup Rasmi';
+  setupLiveVotesListener(data => renderResults(data));
+}
+
+function resolveConflicts(postResults) {
+  const conflictLog = [];
+  const MAX_ITERATIONS = 20;
+  const effectiveRank = postResults.map(() => 0);
+  const nobatChain = postResults.map(() => []);
+
+  for (let round = 0; round < MAX_ITERATIONS; round++) {
+    const nameToWins = {};
+    postResults.forEach((pr, idx) => {
+      const rank = effectiveRank[idx];
+      const winner = pr.sorted[rank];
+      if (!winner) return;
+      if (!nameToWins[winner.name]) nameToWins[winner.name] = [];
+      nameToWins[winner.name].push({ idx, votes: winner.votes, postName: pr.post.name });
+    });
+
+    let conflictFound = false;
+    Object.entries(nameToWins).forEach(([name, wins]) => {
+      if (wins.length <= 1) return;
+      conflictFound = true;
+      wins.sort((a, b) => b.votes - a.votes);
+      const keepWin = wins[0];
+      wins.slice(1).forEach(w => {
+        const pr = postResults[w.idx];
+        const displaced = pr.sorted[effectiveRank[w.idx]];
+        effectiveRank[w.idx]++;
+        const replacement = pr.sorted[effectiveRank[w.idx]];
+        nobatChain[w.idx].push({ round: round + 1, displaced: displaced ? displaced.name : '—', displacedVotes: displaced ? displaced.votes : 0, replacement: replacement ? replacement.name : null, replacementVotes: replacement ? replacement.votes : 0, keepPost: keepWin.postName });
+      });
+    });
+    if (!conflictFound) break;
+  }
+
+  postResults.forEach((pr, idx) => {
+    const chain = nobatChain[idx];
+    if (chain.length === 0) return;
+    const finalRank = effectiveRank[idx];
+    const finalWinner = pr.sorted[finalRank];
+    const originalWinner = pr.sorted[0];
+    pr.autoNobat = true;
+    pr.autoNobatOriginal = originalWinner;
+    pr.autoNobatReplacement = finalWinner || null;
+    pr.autoNobatChain = chain;
+    pr.effectiveWinner = finalWinner || null;
+    conflictLog.push({ postName: pr.post.name, original: originalWinner.name, originalVotes: originalWinner.votes, finalWinner: finalWinner ? finalWinner.name : 'TIADA CALON', finalVotes: finalWinner ? finalWinner.votes : 0, keepPost: chain[0].keepPost, chain, isChained: chain.length > 1 });
+  });
+  return conflictLog;
+}
+
+function renderResults(vd) {
+  const wg=document.getElementById('winner-grid'), rc=document.getElementById('results-container');
+  wg.innerHTML=''; rc.innerHTML='';
+  let totalRef=0; const sumLines=[]; const pieData=[];
+
+  const postResults = posts.map(post => {
+    const cands=post.candidates.map(c=>({...c,votes:(vd[c.id]&&vd[c.id].votes)?vd[c.id].votes:0}));
+    const sorted=[...cands].sort((a,b)=>b.votes-a.votes);
+    const postTotal=sorted.reduce((s,c)=>s+c.votes,0);
+    return { post, cands, sorted, postTotal, autoNobat:false, effectiveWinner:null };
+  });
+
+  const conflictLog = resolveConflicts(postResults);
+
+  const existingBanner = document.getElementById('auto-nobat-banner');
+  if (existingBanner) existingBanner.remove();
+  if (conflictLog.length > 0) {
+    const banner = document.createElement('div');
+    banner.id = 'auto-nobat-banner';
+    banner.className = 'auto-nobat-banner';
+    let items = conflictLog.map(cl => {
+      let chainHtml = '';
+      if (cl.isChained) {
+        chainHtml = cl.chain.map((step, i) =>
+          `<div style="margin-top:5px;padding-left:10px;border-left:2px solid rgba(168,85,247,0.3);font-size:11.5px;color:rgba(216,180,254,0.75)">
+            Pusingan ${step.round}: <strong style="color:#d8b4fe">${step.displaced}</strong> digeser (bertindih di <em>${step.keepPost}</em>)
+            ${step.replacement ? `→ <strong style="color:#d8b4fe">${step.replacement}</strong> dinobatkan` : `→ <span style="color:#fca5a5">Tiada calon seterusnya</span>`}
+          </div>`
+        ).join('');
+      }
+      return `<div class="auto-nobat-item">
+        ⚡ <strong>${cl.original}</strong> (${cl.originalVotes} undi) menang di beberapa jawatan — dikekalkan di <strong>${cl.keepPost}</strong>.
+        <br>→ Jawatan <strong>${cl.postName}</strong>:
+        ${cl.finalWinner !== 'TIADA CALON'
+          ? `<strong style="color:#d8b4fe">${cl.finalWinner}</strong> (${cl.finalVotes} undi) dinobatkan sebagai pemenang`
+          : `<span style="color:#fca5a5">⚠️ Tiada calon lain yang layak</span>`}
+        ${cl.isChained ? `<br><span style="font-size:11px;color:rgba(168,85,247,0.6)">▼ Berlaku ${cl.chain.length} pusingan penyelesaian berantai</span>${chainHtml}` : ''}
+      </div>`;
+    }).join('');
+    banner.innerHTML = `<div class="auto-nobat-title">⚖️ PENYELESAIAN KONFLIK AUTO NOBAT</div>${items}`;
+    wg.parentNode.insertBefore(banner, wg);
+  }
+
+  postResults.forEach(pr => {
+    const { post, sorted, postTotal } = pr;
+    if(post.id==='p1') totalRef=postTotal;
+    const win = pr.autoNobat ? pr.autoNobatReplacement : sorted[0];
+    const pct = postTotal>0 ? Math.round(win.votes/postTotal*100) : 0;
+    const cid = 'pie-'+post.id;
+    const wc=document.createElement('div');
+    wc.className='winner-card'+(pr.autoNobat?' auto-nobat':'');
+    const nobatTag = pr.autoNobat ? `<div class="auto-nobat-tag">⚖️ AUTO NOBAT NAIB JUARA</div>` : '';
+    wc.innerHTML=`<div class="wc-post-label">PEMENANG</div><div class="wc-post-name">${post.name}</div><div class="wc-name">${win.name}</div>${nobatTag}<div class="wc-votes">${win.votes}</div><div class="wc-votes-lbl">undi diterima</div><div class="wc-pie-wrap"><canvas id="${cid}" width="90" height="90"></canvas><div class="wc-pie-label">${pct}%</div></div>`;
+    wg.appendChild(wc);
+    pieData.push({canvasId:cid,sorted,postTotal,effectiveWinnerName:win.name});
+    sumLines.push(`<strong>${post.name}</strong>: ${win.name}${pr.autoNobat?' ⚖️':''} — ${win.votes} undi, ${pct}%`);
+
+    const card=document.createElement('div');
+    card.className='result-post-card';
+    const autoNobatHeadNote = pr.autoNobat ? `<div style="font-size:11px;color:#d8b4fe;margin-top:4px;font-style:italic">⚖️ Pemenang asal (${pr.autoNobatOriginal.name}) dialihkan ke jawatan lain. Naib juara dinobatkan.</div>` : '';
+    card.innerHTML=`<div class="result-post-head"><div class="post-icon">${post.icon}</div><div><div class="post-name">${post.name}</div><div class="post-desc">${post.desc}</div>${autoNobatHeadNote}</div><div class="slot-badge">${postTotal} UNDI</div></div><div class="result-cands" id="rcands-${post.id}"></div>`;
+    rc.appendChild(card);
+
+    const re=document.getElementById('rcands-'+post.id);
+    const rk=['rank1','rank2','rank3'];
+    sorted.forEach((cand,i)=>{
+      const p2=postTotal>0?Math.round(cand.votes/postTotal*100):0;
+      const bw=sorted[0].votes>0?Math.round(cand.votes/sorted[0].votes*100):0;
+      const d=document.createElement('div');
+      const isEffectiveWinner = pr.autoNobat && cand.name === pr.autoNobatReplacement.name;
+      const isDisplacedWinner = pr.autoNobat && cand.name === pr.autoNobatOriginal.name;
+      let rankClass = i<3 ? rk[i] : '';
+      if (isEffectiveWinner) rankClass = 'rank1';
+      if (isDisplacedWinner) rankClass = '';
+      d.className='result-cand'+(rankClass?' '+rankClass:'');
+      let rankEmoji = i<3?['🥇','🥈','🥉'][i]:i+1;
+      let extraNote = '';
+      if (isEffectiveWinner) { rankEmoji = '🏆'; extraNote = `<span style="font-size:10px;color:#d8b4fe;margin-left:6px">⚖️ Dinobatkan</span>`; }
+      if (isDisplacedWinner) { rankEmoji = '↗️'; extraNote = `<span style="font-size:10px;color:rgba(168,85,247,0.7);margin-left:6px">Dialihkan ke jawatan lain</span>`; }
+      d.innerHTML=`<div class="rc-top"><div class="rc-rank">${rankEmoji}</div><div class="rc-name">${cand.name}${extraNote}<br><span style="font-size:11px;font-weight:400;color:var(--muted)">${cand.meta}</span></div><div class="rc-votes">${cand.votes}</div><div class="rc-pct">${p2}%</div></div><div class="rc-bar-wrap"><div class="rc-bar" style="width:${bw}%"></div></div>`;
+      re.appendChild(d);
+    });
+  });
+
+  document.getElementById('r-total-votes').textContent=totalRef;
+  document.getElementById('summary-strip').innerHTML='<strong>Ringkasan Keputusan</strong><br>'+sumLines.join('<br>');
+  setTimeout(()=>renderPieCharts(pieData),50);
+}
+
+function renderPieCharts(pd) {
+  const GP=['#c9a227','#e8b84b','#a07818','#f0c84a','#7a5c10','#d4a035','#f5d87a'];
+  const GP_PURPLE=['#a855f7','#c084fc','#7c3aed'];
+  const OP=['rgba(255,255,255,0.12)','rgba(255,255,255,0.09)','rgba(255,255,255,0.07)','rgba(255,255,255,0.05)'];
+  pd.forEach(({canvasId,sorted,postTotal,effectiveWinnerName})=>{
+    const cv=document.getElementById(canvasId); if(!cv) return;
+    if(pieInst[canvasId]) pieInst[canvasId].destroy();
+    const isAutoNobat = !!effectiveWinnerName && effectiveWinnerName !== sorted[0].name;
+    const colors = sorted.map((c,i) => {
+      if (effectiveWinnerName && c.name === effectiveWinnerName) return isAutoNobat ? GP_PURPLE[0] : GP[0];
+      if (i === 0 && !effectiveWinnerName) return GP[0];
+      return OP[Math.min(i-1, OP.length-1)] || OP[OP.length-1];
+    });
+    const borders = sorted.map(c => { if (effectiveWinnerName && c.name === effectiveWinnerName) return isAutoNobat ? '#c084fc' : '#f0c84a'; return 'rgba(255,255,255,0.04)'; });
+    const bWidths = sorted.map(c => (effectiveWinnerName && c.name === effectiveWinnerName) ? 2 : 0.5);
+    pieInst[canvasId]=new Chart(cv, { type:'doughnut', data:{labels:sorted.map(c=>c.name.split(' ')[0]),datasets:[{data:sorted.map(c=>c.votes),backgroundColor:colors,borderColor:borders,borderWidth:bWidths,hoverOffset:4}]}, options:{responsive:false,cutout:'62%',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>{const p=postTotal>0?Math.round(ctx.parsed/postTotal*100):0;return ctx.label+': '+ctx.parsed+' undi ('+p+'%)';}},backgroundColor:'rgba(11,26,46,0.95)',titleColor:'#f0c84a',bodyColor:'#8fa3bc',borderColor:'rgba(201,162,39,0.3)',borderWidth:1}},animation:{animateRotate:true,duration:600}} });
+  });
+}
+
+window.submitVote=submitVote;
+window.resetAll=resetAll;
+window.selectCand=selectCand;
+window.showCloseConfirm=showCloseConfirm;
+window.closePwOverlay=closePwOverlay;
+window.clearPwError=clearPwError;
+window.verifyPassword=verifyPassword;
+window.showAdminView=showAdminView;
+window.closeAdminPwOverlay=closeAdminPwOverlay;
+window.clearAdminPwError=clearAdminPwError;
+window.verifyAdminPassword=verifyAdminPassword;
+window.closeVoting=closeVoting;
+window.backToVoting=backToVoting;
+window.reopenVoting=reopenVoting;
+
+init();
+
+(function(){
+  document.documentElement.style.overflow = 'visible';
+  document.documentElement.style.height = 'auto';
+  document.body.style.overflow = 'visible';
+  document.body.style.height = 'auto';
+  document.body.style.webkitOverflowScrolling = 'touch';
+
+  function getFullHeight() {
+    const body = document.body, html = document.documentElement;
+    const wrapper = document.getElementById('app-wrapper');
+    const wrapH = wrapper ? wrapper.getBoundingClientRect().bottom : 0;
+    return Math.max(body.scrollHeight, body.offsetHeight, body.getBoundingClientRect().height, html.clientHeight, html.scrollHeight, html.offsetHeight, wrapH) + 80;
+  }
+
+  function sendHeight() {
+    const h = getFullHeight();
+    try { window.parent.postMessage({ type: 'setHeight', height: h }, '*'); } catch(e){}
+    try { window.parent.postMessage({ height: h }, '*'); } catch(e){}
+  }
+
+  if (window.ResizeObserver) {
+    const ro = new ResizeObserver(() => { sendHeight(); setTimeout(sendHeight, 150); });
+    ro.observe(document.body);
+    if (document.getElementById('app-wrapper')) ro.observe(document.getElementById('app-wrapper'));
+  }
+
+  const mo = new MutationObserver(() => { sendHeight(); setTimeout(sendHeight, 100); setTimeout(sendHeight, 400); });
+  mo.observe(document.body, { childList: true, subtree: true, attributes: true });
+  [0,100,300,600,1000,1500,2000,3000,5000].forEach(ms => setTimeout(sendHeight, ms));
+  setInterval(sendHeight, 1500);
+  window.addEventListener('resize', sendHeight);
+  window.addEventListener('load', sendHeight);
+  window.addEventListener('orientationchange', () => setTimeout(sendHeight, 500));
+})();
+</script>
+</body>
+</html>
